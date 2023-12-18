@@ -11,7 +11,12 @@ app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
   const doorNumber = req.params.doorNumber;
 
   io.to(dataid).emit("api-triggered", doorNumber);
-  res.send("API triggered successfully");
+    socket.on("client-response", (response) => {
+    console.log(`Received response from client: ${response}`);
+       res.send(response);
+    // You can add additional logic here if needed
+  });
+ 
 });
 
 io.on("connection", (socket) => {
