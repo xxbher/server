@@ -19,9 +19,9 @@ io.on("connection", (socket) => {
   const dataid = socket.handshake.query.dataid;
   socket.join(dataid); // Join the room based on dataid
   
-  // Listen for the "command-executed" event from the client
-  socket.on("command-executed", (doorNumber) => {
-    console.log(`Command executed successfully for door ${doorNumber}`);
+  // Listen for the client-emitted "client-response" event
+  socket.on("client-response", (response) => {
+    console.log(`Received response from client: ${response}`);
     // You can add additional logic here if needed
   });
 });
