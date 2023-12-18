@@ -12,8 +12,10 @@ io.on("connection", (socket) => {
   socket.join(dataid); // Join the room based on dataid
 
   // Listen for the client-emitted "client-response" event
-  socket.on("client-response", (response) => {
+  socket.on("client-response", (response, callback) => {
     console.log(`Received response from client: ${response}`);
+    // Send an acknowledgment back to the client
+    callback("Acknowledgment from server");
   });
 });
 
