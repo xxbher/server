@@ -6,6 +6,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
+app.use(express.json()); // Enable JSON parsing for POST requests
+
 io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);
   const dataid = socket.handshake.query.dataid;
@@ -30,7 +32,7 @@ app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
   io.to(dataid).emit("api-triggered", { doorNumber, response: responseMessage }, (ack) => {
     console.log(`Acknowledgment from client: ${ack}`);
 
-    // Respond to the HTTP request including the client's response
+    // Respond to the HTTP request including the client's response and acknowledgment
     res.send({
       apiResponse: responseMessage,
       clientAcknowledgment: ack,
