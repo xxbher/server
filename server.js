@@ -18,6 +18,12 @@ io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);
   const dataid = socket.handshake.query.dataid;
   socket.join(dataid); // Join the room based on dataid
+  
+  // Listen for the "command-executed" event from the client
+  socket.on("command-executed", (doorNumber) => {
+    console.log(`Command executed successfully for door ${doorNumber}`);
+    // You can add additional logic here if needed
+  });
 });
 
 const PORT = process.env.PORT || 3000;
