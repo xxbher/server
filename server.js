@@ -7,17 +7,17 @@ const server = http.createServer(app);
 const io = socketIO(server);
 
 app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
-  // Replace 'abcd1234' with the actual socket ID of the client you want to notify
-  const clientIdToNotify = "RaAETyb8iFXFHQKZAAAB";
+  const dataid = req.params.dataid;
+  const doorNumber = req.params.doorNumber;
 
-  // Send a message to the specific client
-  io.to(req.params.dataid).emit("api-triggered", req.params.doorNumber);
-
+  io.to(dataid).emit("api-triggered", doorNumber);
   res.send("API triggered successfully");
 });
 
 io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);
+  const dataid = socket.handshake.query.dataid;
+  socket.join(dataid); // Join the room based on dataid
 });
 
 const PORT = process.env.PORT || 3000;
