@@ -29,26 +29,13 @@ app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
   // Emit the event and pass a callback function
   io.to(dataid).emit("api-triggered", { doorNumber, response: responseMessage }, (ack) => {
     console.log(`Acknowledgment from client: ${ack}`);
-  });
 
-  // Respond to the HTTP request
-  io.on("connection", (socket) => {
-    console.log(`Client connected: ${socket.id}`);
-    const dataid = socket.handshake.query.dataid;
-    socket.join(dataid); // Join the room based on dataid
-  
-    // Listen for the client-emitted "client-response" event
-    socket.on("client-response", (response, callback) => {
-      console.log(`Received response from client: ${response}`);
-      // Send an acknowledgment back to the client
-      callback("Acknowledgment from server");
-      res.send(response);
+    // Respond to the HTTP request including the client's response
+    res.send({
+      apiResponse: responseMessage,
+      clientAcknowledgment: ack,
     });
   });
-
-
-
-  
 });
 
 const PORT = process.env.PORT || 3000;
