@@ -16,6 +16,8 @@ io.on("connection", (socket) => {
   // Listen for the client-emitted "client-response" event
   socket.on("client-response", (response, callback) => {
     console.log(`Received response from client: ${response}`);
+    // Print the content of the callback
+    console.log(`Content of the callback: ${callback}`);
     // Send an acknowledgment back to the client
     callback("Acknowledgment from server");
   });
@@ -39,7 +41,6 @@ app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
     });
   });
 });
-
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
