@@ -13,23 +13,30 @@ io.on("connection", (socket) => {
   const dataid = socket.handshake.query.dataid;
   socket.join(dataid); // Join the room based on dataid
 
-  // Listen for the client-emitted "client-response" event
   app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
     const dataid = req.params.dataid;
     const doorNumber = req.params.doorNumber;
   
+    // Include a response in the "api-triggered" event
+    const responseMessage = "API trigger message sent to clients in the room";
   
-    io.to(dataid).emit("api-triggered", { doorNumber}, (clientResponse) => {
-      socket.on("client-response", (response) => {
-        console.log(`Received response from client: ${response}`);
-        res.send({
-          apiResponse: response
-        
-        });
+    // Emit the "api-triggered" event
+    io.to(dataid).emit("api-triggered", { doorNumber, response: responseMessage });
+  
+    // Listen for the client-response event and include it in res.send
+    socket.once("client-response", (clientResponse) => {
+      res.send({
+        apiResponse: "API request received",
+        clientResponse,
       });
-    
     });
   });
+
+
+
+
+
+
 });
 
 
