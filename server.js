@@ -14,35 +14,28 @@ io.on("connection", (socket) => {
   socket.join(dataid); // Join the room based on dataid
 
   // Listen for the client-emitted "client-response" event
-  socket.on("client-response", (response, callback) => {
-    console.log(`Received response from client: ${response}`);
-    // Print the content of the callback
-    console.log(`Content of the callback: ${callback}`);
-    // Send an acknowledgment back to the client
-    callback("Acknowledgment from server");
-  });
-});
-
-app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
-  const dataid = req.params.dataid;
-  const doorNumber = req.params.doorNumber;
-
-  // Include a response in the "api-triggered" event
-  const responseMessage = "API trigger message sent to clients in the room";
-
-  // Emit the event and pass a callback function
-  io.to(dataid).emit("api-triggered", { doorNumber, response: responseMessage }, (clientResponse) => {
-    console.log(`Received response from client: ${clientResponse}`);
+  app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
+    const dataid = req.params.dataid;
+    const doorNumber = req.params.doorNumber;
+  
+  
+    io.to(dataid).emit("api-triggered", { doorNumber}, (clientResponse) => {
+      socket.on("client-response", (response) => {
+        console.log(`Received response from client: ${response}`);
+        res.send({
+          apiResponse: response
+        
+        });
+      });
     
-    // Respond to the HTTP request including the client's response
-    res.send({
-      apiResponse: responseMessage,
-      clientResponse,
     });
   });
 });
 
-const PORT = process.env.PORT || 3000;
+
+
+
+const PORT = process.env.PORT || 7777;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
