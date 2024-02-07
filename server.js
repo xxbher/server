@@ -29,16 +29,17 @@ app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
   const responseMessage = "API trigger message sent to clients in the room";
 
   // Emit the event and pass a callback function
-  io.to(dataid).emit("api-triggered", { doorNumber, response: responseMessage }, (ack) => {
-    console.log(`Acknowledgment from client: ${ack}`);
-
-    // Respond to the HTTP request including the client's response and acknowledgment
+  io.to(dataid).emit("api-triggered", { doorNumber, response: responseMessage }, (clientResponse) => {
+    console.log(`Received response from client: ${clientResponse}`);
+    
+    // Respond to the HTTP request including the client's response
     res.send({
       apiResponse: responseMessage,
-      clientAcknowledgment: ack,
+      clientResponse,
     });
   });
 });
+
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
