@@ -1,89 +1,137 @@
 const express = require("express");
 const http = require("http");
 const socketIO = require("socket.io");
-const axios = require("axios");
+const mongoose = require("mongoose");
+const Locker = require("./lockerSchema");
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
-// Add middleware to handle JSON in the request body
-app.use(express.json());
+app.use(express.json()); // Enable JSON parsing for POST requests
 
-// Function to find a socket by userId
-function findSocketByUserId(userId) {
-  const sockets = io.of("/").connected;
-
-  if (sockets) {
-    const socketValues = Object.values(sockets);
-    console.log(
-      "Connected Sockets:",
-      socketValues.map((socket) => socket.handshake.query)
-    );
-
-    const targetSocket = socketValues.find(
-      (socket) => socket.handshake.query.userId === userId
-    );
-
-    if (targetSocket) {
-      return targetSocket;
-    } else {
-      console.error(`Socket not found for userId ${userId}`);
+mongoose
+  .connect(
+    "mongodb+srv://bher:FQezjVMpeZ0oLulY@ac-nhlkcuk.f29jvsq.mongodb.net/SOPHON?retryWrites=true",
+    {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      useCreateIndex: true,
+      useFindAndModify: false,
     }
-  } else {
-    console.error("No connected sockets found");
-  }
+  )
+  .then(() => console.log("Connected to MongoDB!"))
+  .catch((err) => console.log("MongoDB Connection Failed"));
 
-  // Log the socket IDs and namespaces for further investigation
-  console.log("All Socket IDs:", Object.keys(io.sockets?.sockets || {}));
-  console.log("All Socket Namespaces:", Object.keys(io.nsps || {}));
+// Handle general connections
+const generalNamespace = io.of("/general");
+generalNamespace.on("connection", async (socket) => {
+  const dataid = socket.handshake.query.dataid;
+  console.log(`General client connected: ${dataid}`);
 
-  return null;
-}
-
-// Handle API endpoint for sending data to the client
-app.post("/api/sendDataToClient", async (req, res) => {
-  const userId = req.body.userId;
-  const data = req.body.data;
-
-  console.log("Received API request to send data:", { userId, data });
-
-  // Wait for a short duration to ensure the connection is fully established
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  // Find the socket associated with the userId
-  const targetSocket = findSocketByUserId(userId);
-
-  if (targetSocket) {
-    // Send data to the target client
-    targetSocket.emit("serverResponse", data);
-    console.log("Data sent to client successfully");
-    res.json({ success: true, message: "Data sent to client successfully" });
-  } else {
-    console.error(`Client not found for userId ${userId}`);
-    res.status(404).json({ success: false, message: "Client not found" });
-  }
-});
-
-io.on("connection", (socket) => {
-  const userId = socket.handshake.query.userId;
-  console.log(`Client connected with ID ${socket.id} and userId ${userId}`);
-
-  // Handle disconnect event
-  socket.on("disconnect", () => {
-    console.log(
-      `Client disconnected with ID ${socket.id} and userId ${userId}`
+  socket.join(dataid);
+  const locker = await Locker.findOneAndUpdate(
+    { location_code: dataid },
+    { $set: { locker_status: true } },
+    { new: true }
+  );
+  socket.on("disconnect", async () => {
+    const locker = await Locker.findOneAndUpdate(
+      { location_code: dataid },
+      { $set: { locker_status: false } },
+      { new: true }
     );
-    // Handle disconnection, update database, etc.
-  });
-
-  // Handle errors
-  socket.on("error", (error) => {
-    console.error("Socket error:", error);
   });
 });
 
-const PORT = process.env.PORT || 3000;
+// Handle controller connections
+const controllerNamespace = io.of("/controller");
+controllerNamespace.on("connection", async (socket) => {
+  const dataid = socket.handshake.query.dataid;
+  console.log(`Controller client connected: ${dataid}`);
+
+  socket.join(dataid);
+
+  try {
+    const locker = await Locker.findOneAndUpdate(
+      { location_code: dataid },
+      { $set: { locker_controller_status: true } },
+      { new: true }
+    );
+  } catch (err) {
+    console.error("Error fetching locker by location_code:", err.message);
+  }
+
+  socket.on("disconnect", async () => {
+    const locker = await Locker.findOneAndUpdate(
+      { location_code: dataid },
+      { $set: { locker_controller_status: false } },
+      { new: true }
+    );
+  });
+});
+
+app.get("/maintinance/:dataid/:status", (req, res) => {
+  const dataid = req.params.dataid;
+  const status = req.params.status;
+
+  // Include a response in the "api-triggered" event
+  const responseMessage = "API trigger message sent to clients in the room";
+
+  // Emit the "api-triggered" event to the specified room in the general namespace
+  generalNamespace.to(dataid).emit("maintinance", {
+    status,
+    response: responseMessage,
+  });
+
+  res.send("Event emitted successfully");
+});
+
+app.get("/trigger-api/:dataid/:doorNumber", (req, res) => {
+  const dataid = req.params.dataid;
+  const doorNumber = req.params.doorNumber;
+
+  // Include a response in the "api-triggered" event
+  const responseMessage = "API trigger message sent to clients in the room";
+
+  // Emit the "api-triggered" event to the specified room in the general namespace
+  controllerNamespace.to(dataid).emit("api-triggered", {
+    doorNumber,
+    response: responseMessage,
+  });
+
+  res.send("Event emitted successfully");
+});
+
+app.get("/opendoor/:dataid/:doorNumber", (req, res) => {
+  const dataid = req.params.dataid;
+  const doorNumber = req.params.doorNumber;
+
+  // Include a response in the "opendoor" event
+  const responseMessage = "API trigger message sent to clients in the room";
+
+  // Emit the "opendoor" event to the controller namespace
+  controllerNamespace.to(dataid).emit("opendoor", {
+    doorNumber,
+    response: responseMessage,
+  });
+
+  // Listen for the client-response event and include it in res.send
+  const responseListener = (clientResponse) => {
+    res.send({
+      apiResponse: "API request received",
+      clientResponse,
+    });
+
+    // Remove the listener after the response is received
+    controllerNamespace.to(dataid).off("client-response", responseListener);
+  };
+
+  // Attach the listener to the room
+  controllerNamespace.to(dataid).on("client-response", responseListener);
+});
+
+const PORT = process.env.PORT || 7777;
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
